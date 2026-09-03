@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import httpStatus from "http-status";
-import { DoctorVerificationStatus, Role } from "../../generated/prisma/enums";
+import { Role } from "../../generated/prisma/enums";
 import config from "../config";
 import { prisma } from "../lib/prisma";
 import { AppError } from "./AppError";
@@ -111,67 +111,3 @@ export const seedTesterAdmin = async () => {
 	}
 };
 
-// create tester doctor
-
-export const seedTesterDoctor = async () => {
-	try {
-		const isTesterDoctorExist = await prisma.user.findUnique({
-			where: {
-				email: config.tester_doctor_email,
-			},
-		});
-
-		if (isTesterDoctorExist) {
-			console.log("Tester Doctor Already Exists!");
-			return;
-		}
-
-		const name = config.tester_doctor_name;
-		const email = config.tester_doctor_email;
-		const password = config.tester_doctor_password;
-
-		if (!name || !email || !password) {
-			throw new AppError(
-				httpStatus.INTERNAL_SERVER_ERROR,
-				"Tester Doctor Name , Email, Password Missing In Env File!!!",
-			);
-		}
-
-		const hashedPassword = await bcrypt.hash(
-			password,
-			Number(config.bcrypt_salt_rounds),
-		);
-
-		const testerDoctor = await prisma.user.create({
-			data: {
-				name,
-				email,
-				password: hashedPassword,
-				role: Role.DOCTOR,
-				needPasswordChange: false,
-				emailVerified: true,
-				doctor: {
-					create: {
-						email,
-						name,
-						experienceYears: 5,
-						licenseNumber: "BMDC0000",
-						qualifications: "MBBS",
-						specialization: "Neurology",
-						verificationStatus: DoctorVerificationStatus.APPROVED,
-					},
-				},
-			},
-		});
-
-		console.log("Tester Doctor Created : ", testerDoctor);
-	} catch (error) {
-		console.log("Error Seeding Tester Doctor : ", error);
-
-		await prisma.user.delete({
-			where: {
-				email: config.tester_doctor_email,
-			},
-		});
-	}
-};
