@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Login Tester</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 2rem;
+            background-color: #f9fafb;
+            color: #1f2937;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            box-sizing: border-box;
+            margin-bottom: 0.5rem;
+        }
+
+        button.btn-init {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 0.75rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        button.btn-init:hover {
+            background-color: #1d4ed8;
+        }
+
+        .google-btn-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 1rem;
+            min-height: 40px;
+        }
+
+        #result {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f3f4f6;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: monospace;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Google Login Tester</h1>
+
+        <div class="form-group">
+            <label for="clientId">Google Client ID</label>
+            <input type="text" id="clientId" placeholder="Enter your Google Client ID here...">
+        </div>
+
+        <div class="form-group">
+            <label for="backendUrl">Backend API URL</label>
+            <input type="text" id="backendUrl" value="https://courier.devtanvir.work/api/v1/auth/google">
+            <small style="color: #6b7280;">Adjust the port if you are running on a different port.</small>
+        </div>
+
+
+        <button class="btn-init" id="initBtn">Initialize Google Login</button>
+
+        <div id="googleButton" class="google-btn-container"></div>
+
+        <div id="result"></div>
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script>
+        document.getElementById('initBtn').addEventListener('click', () => {
+            const clientId = document.getElementById('clientId').value.trim();
+
+            if (!clientId) {
+                alert('Please enter a Google Client ID');
+                return;
+            }
+
+            // Initialize Google Sign-In
+            google.accounts.id.initialize({
+                client_id: clientId,
+                callback: handleCredentialResponse
+            });
+
+            // Render the button
+            google.accounts.id.renderButton(
+                document.getElementById("googleButton"),
+                { theme: "outline", size: "large", width: "100%" }
+            );
+
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('result').innerText = 'Google Sign-In initialized. Please click the Google button below to test.';
+        });
+
+        async function handleCredentialResponse(response) {
+            const idToken = response.credential;
+            const backendUrl = document.getElementById('backendUrl').value.trim();
+            const resultDiv = document.getElementById('result');
+
+            resultDiv.style.display = 'block';
+            resultDiv.innerText = 'Received Google Token. Sending to backend...';
+
+            try {
+                const res = await fetch(backendUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        idToken: idToken
+                    })
+                });
+
+                const data = await res.json();
+
+                resultDiv.innerHTML = `<strong>Backend Response:</strong><br><br>${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                resultDiv.innerHTML = `<span style="color: red;"><strong>Error:</strong><br>${error.message}</span>`;
+                console.error('Error during backend fetch:', error);
+            }
+        }
+    </script>
+
+</body>
+
+</html>

@@ -17,6 +17,8 @@ const main = async () => {
 		console.log("Connected to the database successfully.");
 
 		await redisClient.ping();
+		redisClient.set("test", "test");
+		redisClient.get("test").then(console.log);
 		console.log("Redis Connected Successfully.");
 
 		await transporter.verify();

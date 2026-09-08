@@ -13,12 +13,16 @@ import { globalErrorHandler } from "./app/middleware/globalErrorHandler";
 import { notFound } from "./app/middleware/notFound";
 import { AuthRoutes } from "./app/module/auth/auth.route";
 import { UserRoutes } from "./app/module/user/user.route";
+import path from "node:path";
+import { requestLogger } from "./app/middleware/requestLogger";
 
 const app: Application = express();
 
+app.use(requestLogger);
+
 app.use(
 	cors({
-		origin: config.frontend_url,
+		origin: "*",
 		credentials: true,
 	}),
 );
@@ -56,6 +60,9 @@ app.get("/", async (req: Request, res: Response) => {
 		success: true,
 		message: "Welcome to PH Healthcare System Backend",
 	});
+});
+app.get("/google-login-test", (req: Request, res: Response) => {
+	res.sendFile(path.join(__dirname, '../../google-login-test.html'))
 });
 
 app.use(globalErrorHandler);
