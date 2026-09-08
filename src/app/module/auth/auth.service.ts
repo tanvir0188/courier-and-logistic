@@ -32,13 +32,17 @@ const registerUser = async (payload: IRegisterUserPayload) => {
 	const { name, password } = payload;
 
 	const email = payload.email.trim().toLowerCase();
+	console.log(`upcomning email:${email}`)
 
 	const isUserExists = await prisma.user.findUnique({
 		where: { email },
 	});
 
 	if (isUserExists) {
-		throw new AppError(httpStatus.CONFLICT, "User with this email already exists");
+		throw new AppError(
+			httpStatus.CONFLICT,
+			"User with this email already exists",
+		);
 	}
 
 	const hashedPassword = await bcrypt.hash(password, 8);
@@ -60,7 +64,7 @@ const registerUser = async (payload: IRegisterUserPayload) => {
 	await redisClient.set(
 		patientRegistrationKey,
 		JSON.stringify(redisUserDataPayload),
-		{ ex: expirationSeconds }
+		{ ex: expirationSeconds },
 	);
 
 	const tempatePath = path.join(
@@ -129,9 +133,11 @@ const verifyUserEmail = async (payload: IVerifyEmailPayload) => {
 		throw new AppError(httpStatus.NOT_FOUND, "User Doesnt Exist");
 	}
 
-	const patientPayload = (typeof redisPatientData === "string" 
-		? JSON.parse(redisPatientData) 
-		: redisPatientData) as IRegisterUserPayload;
+	const patientPayload = (
+		typeof redisPatientData === "string"
+			? JSON.parse(redisPatientData)
+			: redisPatientData
+	) as IRegisterUserPayload;
 
 	const createdUser = await prisma.user.create({
 		data: {
@@ -195,7 +201,6 @@ const verifyUserEmail = async (payload: IVerifyEmailPayload) => {
 };
 
 const loginUser = async (payload: ILoginUserPayload) => {
-
 	// throw new Error("Test Error");
 
 	const { password } = payload;
@@ -207,7 +212,7 @@ const loginUser = async (payload: ILoginUserPayload) => {
 
 	if (!user) {
 		// throw new Error("User not found");
-		throw new AppError(httpStatus.NOT_FOUND, "User Not Found")
+		throw new AppError(httpStatus.NOT_FOUND, "User Not Found");
 	}
 
 	if (user.status === UserStatus.BLOCKED) {
@@ -298,7 +303,10 @@ const refreshToken = async (token: string) => {
 	});
 
 	if (!user || user.isDeleted || user.status !== UserStatus.ACTIVE) {
-		throw new AppError(httpStatus.UNAUTHORIZED, "User is inactive or not found");
+		throw new AppError(
+			httpStatus.UNAUTHORIZED,
+			"User is inactive or not found",
+		);
 	}
 
 	const jwtPayload = {
@@ -337,18 +345,27 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
 		googleIdTokenPayload = ticket.getPayload();
 	} catch (error) {
 		console.log("Google ID Token Verification Failed", error);
-		throw new AppError(httpStatus.UNAUTHORIZED, "Invalid Or Expired Google Id Token");
+		throw new AppError(
+			httpStatus.UNAUTHORIZED,
+			"Invalid Or Expired Google Id Token",
+		);
 	}
 
 	if (!googleIdTokenPayload) {
-		throw new AppError(httpStatus.UNAUTHORIZED, "Invalid Or Expired Google Id Token");
+		throw new AppError(
+			httpStatus.UNAUTHORIZED,
+			"Invalid Or Expired Google Id Token",
+		);
 	}
 
 	if (!googleIdTokenPayload.email) {
 		throw new AppError(httpStatus.BAD_REQUEST, "Google Email Not Found");
 	}
 	if (!googleIdTokenPayload.name) {
-		throw new AppError(httpStatus.BAD_REQUEST, "Google Email User Name Not Found");
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"Google Email User Name Not Found",
+		);
 	}
 
 	const ifPatientExistWithGoogleAuth = await prisma.user.findUnique({

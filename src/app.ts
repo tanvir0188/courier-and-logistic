@@ -62,7 +62,7 @@ app.get("/", async (req: Request, res: Response) => {
 	});
 });
 app.get("/google-login-test", (req: Request, res: Response) => {
-	res.sendFile(path.join(__dirname, '../../google-login-test.html'))
+	res.sendFile(path.join(__dirname, "../../google-login-test.html"));
 });
 
 app.use(globalErrorHandler);
