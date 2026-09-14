@@ -1,0 +1,115 @@
+model Shipment {
+  id             String       @id @default(uuid())
+  orgId          String
+  organization   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  trackingNumber String       @unique
+
+  // Sender & Customer
+  senderId         String
+  sender           User      @relation("CustomerShipments", fields: [senderId], references: [id], onDelete: Restrict)
+  senderName       String
+  senderPhone      String
+  senderEmail      String?
+  pickupAddress    String
+  pickupCity       String
+  pickupPostalCode String?
+  pickupLatitude   Float
+  pickupLongitude  Float
+  pickupDate       DateTime?
+  pickupZoneId     String?
+  pickupZone       Zone?     @relation("PickupZone", fields: [pickupZoneId], references: [id], onDelete: SetNull)
+
+  // Recipient & Delivery
+  recipientName      String
+  recipientPhone     String
+  recipientEmail     String?
+  deliveryAddress    String
+  deliveryCity       String
+  deliveryPostalCode String?
+  deliveryLatitude   Float
+  deliveryLongitude  Float
+  deliveryZoneId     String?
+  deliveryZone       Zone?   @relation("DeliveryZone", fields: [deliveryZoneId], references: [id], onDelete: SetNull)
+
+  // Parcel Specs
+  packageType   PackageType @default(PARCEL)
+  description   String?
+  weightKg      Float
+  lengthCm      Float?
+  widthCm       Float?
+  heightCm      Float?
+  declaredValue Decimal?    @db.Decimal(10, 2)
+
+  // Routing & Hubs
+  originHubId      String?
+  originHub        Hub?    @relation("OriginHub", fields: [originHubId], references: [id], onDelete: SetNull)
+  destinationHubId String?
+  destinationHub   Hub?    @relation("DestinationHub", fields: [destinationHubId], references: [id], onDelete: SetNull)
+  currentHubId     String?
+  currentHub       Hub?    @relation("CurrentHub", fields: [currentHubId], references: [id], onDelete: SetNull)
+
+  // Assigned Couriers
+  pickupCourierId   String?
+  pickupCourier     User?   @relation("PickupCourierShipments", fields: [pickupCourierId], references: [id], onDelete: SetNull)
+  deliveryCourierId String?
+  deliveryCourier   User?   @relation("DeliveryCourierShipments", fields: [deliveryCourierId], references: [id], onDelete: SetNull)
+
+  // Financials & Payment
+  distanceKm     Float?
+  deliveryFee    Decimal       @db.Decimal(10, 2)
+  discountAmount Decimal       @default(0) @db.Decimal(10, 2)
+  totalAmount    Decimal       @db.Decimal(10, 2)
+  paymentStatus  PaymentStatus @default(PENDING)
+  paymentMethod  PaymentMethod @default(STRIPE)
+
+  // State
+  status ShipmentStatus @default(DRAFT)
+
+  // Proof of Delivery (Cloudinary)
+  podImageUrl      String?
+  podPublicId      String?
+  podSignatureUrl  String?
+  podRecipientName String?
+  podNotes         String?
+  podDeliveredAt   DateTime?
+
+  // Timeline
+  estimatedDeliveryDate DateTime?
+  actualDeliveryDate    DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  trackingEvents TrackingEvent[]
+  payments       Payment[]
+
+  @@index([orgId, status])
+  @@index([orgId, senderId])
+  @@index([orgId, pickupCourierId])
+  @@index([orgId, deliveryCourierId])
+  @@index([orgId, currentHubId])
+  @@index([createdAt])
+  @@map("shipments")
+}
+
+model TrackingEvent {
+  id           String         @id @default(uuid())
+  orgId        String
+  organization Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  shipmentId   String
+  shipment     Shipment       @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  status       ShipmentStatus
+  title        String
+  description  String?
+  location     String?
+  latitude     Float?
+  longitude    Float?
+  hubId        String?
+  hub          Hub?           @relation(fields: [hubId], references: [id], onDelete: SetNull)
+  actorId      String?
+  actor        User?          @relation("ActorTrackingEvents", fields: [actorId], references: [id], onDelete: SetNull)
+  timestamp    DateTime       @default(now())
+
+  @@index([shipmentId, timestamp])
+  @@index([orgId, shipmentId])
+  @@map("tracking_events")
+}

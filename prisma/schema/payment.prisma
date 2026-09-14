@@ -1,0 +1,23 @@
+model Payment {
+  id                    String        @id @default(uuid())
+  orgId                 String
+  organization          Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  shipmentId            String
+  shipment              Shipment      @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  userId                String
+  user                  User          @relation("UserPayments", fields: [userId], references: [id], onDelete: Restrict)
+  amount                Decimal       @db.Decimal(10, 2)
+  currency              String        @default("USD")
+  status                PaymentStatus @default(PENDING)
+  provider              String        @default("STRIPE")
+  stripeSessionId       String?       @unique
+  stripePaymentIntentId String?       @unique
+  transactionId         String?
+  metadata              Json?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  @@index([orgId, shipmentId])
+  @@index([orgId, userId])
+  @@map("payments")
+}

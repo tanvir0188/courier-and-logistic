@@ -6,9 +6,9 @@ Based on your technical decisions, this guide provides a sequential roadmap for 
 - **Architecture:** Multi-tenant (Shared DB with `org_id` column) from Day 1
 - **Tech Stack:** Express.js + TypeScript, PostgreSQL, Prisma ORM
 - **Authentication:** Passport.js
-- **Payment Gateway:** SSLCommerz
+- **Payment Gateway:** Stripe
 - **Notifications:** Email only
-- **File Storage:** Cloudflare R2 (for Proof of Delivery, etc.)
+- **File Storage:** cloudinary
 - **Geo/Maps:** Open-source (e.g., OpenStreetMap / OSRM)
 - **Courier Assignment:** Auto-suggest + Manual confirmation
 
@@ -28,9 +28,9 @@ Since you are designing the DB and APIs yourself, here is the exact sequence of 
 2. **Database Modeling (Prisma)**
    - Define the core models: `Organization`, `User`, `Hub`, `Zone`, `Shipment`, `TrackingEvent`.
    - Ensure all tenant-specific tables have an `org_id` field.
-3. **Authentication & Authorization (Passport.js)**
+3. **Authentication & Authorization (google oauth)**
    - Implement Super Admin login.
-   - Implement Organization creation (Tenant onboarding).
+   - Implement Organization creation (Tenant onboarding).   
    - Implement user registration/login (Customer, Admin, Courier, Hub Manager).
    - Create Role-Based Access Control (RBAC) middlewares to restrict route access.
 
