@@ -8,7 +8,6 @@ import express, {
 } from "express";
 import httpStatus from "http-status";
 import config from "./app/config";
-import { getBkashIdToken } from "./app/lib/bkash";
 import { globalErrorHandler } from "./app/middleware/globalErrorHandler";
 import { notFound } from "./app/middleware/notFound";
 import { AuthRoutes } from "./app/module/auth/auth.route";
@@ -37,28 +36,19 @@ app.use(cookieParser());
 app.use("/api/v1/auth", AuthRoutes);
 app.use("/api/v1/user", UserRoutes);
 
-app.get("/test", async (req: Request, res: Response, next: NextFunction) => {
-	try {
-		const grantIdTokenResult = await getBkashIdToken();
-
-		console.log(grantIdTokenResult);
-
-		res.status(httpStatus.OK).json({
-			success: true,
-			message: "Welcome to PH Healthcare System Backend",
-			data: null,
-		});
-	} catch (error) {
-		console.log(error);
-		next(error);
-	}
+app.get("/test", async (_req: Request, res: Response) => {
+	res.status(httpStatus.OK).json({
+		success: true,
+		message: "Courier and Logistics Backend is healthy and running!",
+		data: null,
+	});
 });
 
 // Basic route
-app.get("/", async (req: Request, res: Response) => {
+app.get("/", async (_req: Request, res: Response) => {
 	res.status(httpStatus.OK).json({
 		success: true,
-		message: "Welcome to PH Healthcare System Backend",
+		message: "Welcome to Courier and Logistics Service API",
 	});
 });
 app.get("/google-login-test", (req: Request, res: Response) => {

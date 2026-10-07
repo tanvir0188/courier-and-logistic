@@ -1,0 +1,16 @@
+model Courier {
+  id         String        @id @default(uuid())
+  providerId String        @map("provider_id")
+  provider   User          @relation("ProviderCouriers", fields: [providerId], references: [id], onDelete: Cascade)
+  name       String
+  phone      String
+  status     CourierStatus @default(AVAILABLE)
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+
+  shipments Shipment[] @relation("CourierShipments")
+
+  @@index([providerId])
+  @@index([status])
+  @@map("couriers")
+}

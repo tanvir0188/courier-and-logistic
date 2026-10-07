@@ -1,81 +1,20 @@
 model User {
-  id                 String       @id @default(uuid())
-  name               String
-  email              String
-  phone              String?
-  password           String?
-  googleId           String?      @unique
-  authProvider       AuthProvider @default(CREDENTIAL)
-  emailVerified      Boolean      @default(false)
-  role               Role         @default(CUSTOMER)
-  status             UserStatus   @default(ACTIVE)
-  needPasswordChange Boolean      @default(false)
-  imageUrl           String       @default("")
-  imagePublicId      String       @default("")
-  isDeleted          Boolean      @default(false)
-  deletedAt          DateTime?
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  id              String   @id @default(uuid())
+  name            String
+  email           String   @unique
+  phone           String?
+  passwordHash    String   @map("password_hash")
+  isEmailVerified Boolean  @default(false) @map("is_email_verified")
+  profilePic      String?  @map("profile_pic")
+  role            Role     @default(CUSTOMER)
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
-  orgId        String?
-  organization Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  couriers            Courier[]  @relation("ProviderCouriers")
+  shipmentsAsCustomer Shipment[] @relation("CustomerShipments")
+  shipmentsAsProvider Shipment[] @relation("ProviderShipments")
+  payments            Payment[]  @relation("CustomerPayments")
 
-  courierProfile             CourierProfile?
-  shipmentsAsCustomer        Shipment[]      @relation("CustomerShipments")
-  shipmentsAsPickupCourier   Shipment[]      @relation("PickupCourierShipments")
-  shipmentsAsDeliveryCourier Shipment[]      @relation("DeliveryCourierShipments")
-  managedHubs                Hub[]           @relation("HubManager")
-  trackingEvents             TrackingEvent[] @relation("ActorTrackingEvents")
-  payments                   Payment[]       @relation("UserPayments")
-
-  @@unique([email])
-  @@index([orgId, role])
   @@map("users")
-}
-
-model Organization {
-  id        String   @id @default(uuid())
-  name      String
-  subdomain String?  @unique
-  email     String?
-  phone     String?
-  address   String?
-  currency  String   @default("USD")
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  users           User[]
-  courierProfiles CourierProfile[]
-  hubs            Hub[]
-  zones           Zone[]
-  pricingRules    PricingRule[]
-  shipments       Shipment[]
-  trackingEvents  TrackingEvent[]
-  payments        Payment[]
-
-  @@map("organizations")
-}
-
-model CourierProfile {
-  id               String       @id @default(uuid())
-  userId           String       @unique
-  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orgId            String
-  organization     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  vehicleType      VehicleType  @default(MOTORCYCLE)
-  licensePlate     String?
-  assignedHubId    String?
-  assignedHub      Hub?         @relation("HubStationedCouriers", fields: [assignedHubId], references: [id], onDelete: SetNull)
-  currentLatitude  Float?
-  currentLongitude Float?
-  isAvailable      Boolean      @default(true)
-  maxCapacityKg    Float?
-  rating           Float        @default(5.0)
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-
-  @@index([orgId, isAvailable])
-  @@index([currentLatitude, currentLongitude])
-  @@map("courier_profiles")
 }

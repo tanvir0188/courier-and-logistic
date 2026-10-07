@@ -1,23 +1,22 @@
 model Payment {
-  id                    String        @id @default(uuid())
-  orgId                 String
-  organization          Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  shipmentId            String
-  shipment              Shipment      @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
-  userId                String
-  user                  User          @relation("UserPayments", fields: [userId], references: [id], onDelete: Restrict)
-  amount                Decimal       @db.Decimal(10, 2)
-  currency              String        @default("USD")
-  status                PaymentStatus @default(PENDING)
-  provider              String        @default("STRIPE")
-  stripeSessionId       String?       @unique
-  stripePaymentIntentId String?       @unique
-  transactionId         String?
-  metadata              Json?
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
+  id         String   @id @default(uuid())
+  shipmentId String   @unique @map("shipment_id")
+  shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  customerId String   @map("customer_id")
+  customer   User     @relation("CustomerPayments", fields: [customerId], references: [id], onDelete: Restrict)
 
-  @@index([orgId, shipmentId])
-  @@index([orgId, userId])
+  transactionId String?        @unique @map("transaction_id")
+  gateway       PaymentGateway @default(STRIPE)
+  amount        Decimal        @db.Decimal(10, 2)
+  status        PaymentStatus  @default(PENDING)
+
+  gatewayReference String?   @map("gateway_reference")
+  callbackData     Json?     @map("callback_data")
+  paidAt           DateTime? @map("paid_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@index([customerId])
+  @@index([status])
   @@map("payments")
 }

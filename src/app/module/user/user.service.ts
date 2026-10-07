@@ -3,45 +3,15 @@ import { cloudinary } from "../../lib/cloudinary";
 import { prisma } from "../../lib/prisma";
 
 const uploadProfileImage = async (buffer: Buffer, userId: string) => {
-	// const cloudinaryResult = cloudinary.uploader.upload_stream(
-	//     {
-	//         resource_type : "auto"
-	//     },
-
-	//     async (error, result) => {
-	//         if(error){
-	//             console.log(error);
-	//             throw new Error(error.message)
-	//         }
-
-	//         console.log(result, "result");
-
-	//         const updatedUser = await prisma.user.update({
-	//             where : {
-	//                 id : userId
-	//             },
-
-	//             data: {
-	//                 imageUrl : result?.secure_url,
-	//                 imagePublicId : result?.public_id
-	//             }
-	//         })
-
-	//         console.log(updatedUser);
-
-	//         // return result
-	//     }
-	// ).end(buffer)
-
 	const currentUser = await prisma.user.findUnique({
 		where: {
 			id: userId,
 		},
-		select: {
-			imagePublicId: true,
-			imageUrl: true,
-		},
 	});
+
+	if (!currentUser) {
+		throw new Error("User not found");
+	}
 
 	const cloudinaryResult = await new Promise<UploadApiResponse>(
 		(resolve, reject) => {
@@ -73,17 +43,16 @@ const uploadProfileImage = async (buffer: Buffer, userId: string) => {
 		},
 
 		data: {
-			imageUrl: cloudinaryResult.secure_url,
-			imagePublicId: cloudinaryResult.public_id,
+			profilePic: cloudinaryResult.secure_url,
 		},
 
 		omit: {
-			password: true,
+			passwordHash: true,
 		},
 	});
 
-	if (currentUser?.imagePublicId && currentUser.imageUrl) {
-		await cloudinary.uploader.destroy(currentUser.imagePublicId);
+	if (currentUser?.profilePic) {
+		await cloudinary.uploader.destroy(currentUser.profilePic);
 	}
 
 	return updatedUser;

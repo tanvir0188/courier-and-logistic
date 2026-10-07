@@ -48,14 +48,7 @@ router.post(
 );
 router.get(
 	"/me",
-	auth(
-		Role.SUPER_ADMIN,
-		Role.ADMIN,
-		Role.CUSTOMER,
-		Role.COURIER,
-		Role.HUB_MANAGER,
-		Role.OPS_MANAGER,
-	),
+	auth(Role.ADMIN, Role.CUSTOMER, Role.PROVIDER),
 	// validateRequest
 	AuthController.getMe,
 );

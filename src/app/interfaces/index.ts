@@ -6,5 +6,5 @@ export interface IQuery {
 	sortBy?: string;
 
 	//any other filter fields can be added here
-	[key: string]: any;
+	[key: string]: unknown;
 }

@@ -58,9 +58,6 @@ export const auth = (...requiredRoles: Role[]) => {
 		const user = await prisma.user.findUnique({
 			where: {
 				id: userId,
-				email,
-				name,
-				role,
 			},
 		});
 
@@ -71,10 +68,10 @@ export const auth = (...requiredRoles: Role[]) => {
 			);
 		}
 
-		if (user.status === "BLOCKED") {
+		if (!user.isActive) {
 			throw new AppError(
 				httpStatus.FORBIDDEN,
-				"Your account has been blocked. Please contact support.",
+				"Your account is inactive or blocked. Please contact support.",
 			);
 		}
 
