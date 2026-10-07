@@ -1,0 +1,8 @@
+model Zone {
+    id   String @id @default(uuid())
+    name String @unique
+
+    couriers Courier[] @relation("ZoneCouriers")
+
+    @@map("zones")
+}

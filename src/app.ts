@@ -11,7 +11,9 @@ import config from "./app/config";
 import { globalErrorHandler } from "./app/middleware/globalErrorHandler";
 import { notFound } from "./app/middleware/notFound";
 import { AuthRoutes } from "./app/module/auth/auth.route";
+import { CourierRoutes } from "./app/module/courier/courier.route";
 import { UserRoutes } from "./app/module/user/user.route";
+import { ZoneRoutes } from "./app/module/zone/zone.route";
 import path from "node:path";
 import { requestLogger } from "./app/middleware/requestLogger";
 
@@ -35,6 +37,8 @@ app.use(cookieParser());
 
 app.use("/api/v1/auth", AuthRoutes);
 app.use("/api/v1/user", UserRoutes);
+app.use("/api/v1/zone", ZoneRoutes);
+app.use("/api/v1/courier", CourierRoutes);
 
 app.get("/test", async (_req: Request, res: Response) => {
 	res.status(httpStatus.OK).json({
