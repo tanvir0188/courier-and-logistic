@@ -102,7 +102,8 @@ const getAllCouriers = async (
 				},
 				_count: {
 					select: {
-						shipments: true,
+						pickupShipments: true,
+						deliveryShipments: true,
 					},
 				},
 			},
@@ -136,7 +137,8 @@ const getCourierById = async (currentUser: RequestUser, id: string) => {
 			},
 			_count: {
 				select: {
-					shipments: true,
+					pickupShipments: true,
+					deliveryShipments: true,
 				},
 			},
 		},

@@ -1,12 +1,19 @@
 model Shipment {
-  id             String   @id @default(uuid())
-  trackingNumber String   @unique @map("tracking_number")
-  customerId     String   @map("customer_id")
-  customer       User     @relation("CustomerShipments", fields: [customerId], references: [id], onDelete: Restrict)
-  providerId     String   @map("provider_id")
-  provider       User     @relation("ProviderShipments", fields: [providerId], references: [id], onDelete: Restrict)
-  courierId      String?  @map("courier_id")
-  courier        Courier? @relation("CourierShipments", fields: [courierId], references: [id], onDelete: SetNull)
+  id                String   @id @default(uuid())
+  trackingNumber    String   @unique @map("tracking_number")
+  customerId        String   @map("customer_id")
+  customer          User     @relation("CustomerShipments", fields: [customerId], references: [id], onDelete: Restrict)
+  providerId        String   @map("provider_id")
+  provider          User     @relation("ProviderShipments", fields: [providerId], references: [id], onDelete: Restrict)
+  pickupCourierId   String?  @map("pickup_courier_id")
+  pickupCourier     Courier? @relation("PickupCourierShipments", fields: [pickupCourierId], references: [id], onDelete: SetNull)
+  deliveryCourierId String?  @map("delivery_courier_id")
+  deliveryCourier   Courier? @relation("DeliveryCourierShipments", fields: [deliveryCourierId], references: [id], onDelete: SetNull)
+
+  senderZoneId   String @map("sender_zone_id")
+  senderZone     Zone   @relation("SenderZoneShipments", fields: [senderZoneId], references: [id], onDelete: Restrict)
+  receiverZoneId String @map("receiver_zone_id")
+  receiverZone   Zone   @relation("ReceiverZoneShipments", fields: [receiverZoneId], references: [id], onDelete: Restrict)
 
   senderName    String @map("sender_name")
   senderPhone   String @map("sender_phone")
@@ -31,10 +38,9 @@ model Shipment {
   events  ShipmentEvent[]
 
   @@index([customerId])
-  @@index([providerId])
-  @@index([courierId])
-  @@index([status])
-  @@index([createdAt])
+  @@index([providerId, status])
+  @@index([pickupCourierId])
+  @@index([deliveryCourierId])
   @@map("shipments")
 }
 
@@ -47,6 +53,5 @@ model ShipmentEvent {
   createdAt   DateTime       @default(now()) @map("created_at")
 
   @@index([shipmentId])
-  @@index([status])
   @@map("shipment_events")
 }

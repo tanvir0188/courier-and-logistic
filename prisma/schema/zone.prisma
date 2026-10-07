@@ -1,8 +1,11 @@
 model Zone {
-    id   String @id @default(uuid())
-    name String @unique
+  id   String @id @default(uuid())
+  name String @unique
 
-    couriers Courier[] @relation("ZoneCouriers")
+  couriers Courier[] @relation("ZoneCouriers")
 
-    @@map("zones")
+  senderShipments   Shipment[] @relation("SenderZoneShipments")
+  receiverShipments Shipment[] @relation("ReceiverZoneShipments")
+
+  @@map("zones")
 }
