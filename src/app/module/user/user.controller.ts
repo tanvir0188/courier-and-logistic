@@ -5,25 +5,42 @@ import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { UserServices } from "./user.service";
 
-const uploadProfileImage = catchAsync(async (req: Request, res: Response) => {
-	if (!req.file) {
-		throw new AppError(httpStatus.BAD_REQUEST, "No File Provided.");
-	}
-
+const updateProfile = catchAsync(async (req: Request, res: Response) => {
 	const userId = req.user?.userId;
 
-	const result = await UserServices.uploadProfileImage(
+	if (!userId) {
+		throw new AppError(httpStatus.UNAUTHORIZED, "User not authenticated");
+	}
+
+	let body = req.body || {};
+	if (typeof body.data === "string") {
+		try {
+			body = JSON.parse(body.data);
+		} catch {
+			// keep parsed body as fallback
+		}
+	}
+
+	const payload = {
+		name: body.name,
+		phone: body.phone,
+		profilePic: body.profilePic,
+	};
+
+	const result = await UserServices.updateProfile(
+		userId,
+		payload,
 		req.file?.buffer,
-		userId!,
 	);
+
 	sendResponse(res, {
 		statusCode: httpStatus.OK,
 		success: true,
-		message: "New tokens generated successfully",
+		message: "Profile updated successfully",
 		data: result,
 	});
 });
 
 export const UserController = {
-	uploadProfileImage,
+	updateProfile
 };

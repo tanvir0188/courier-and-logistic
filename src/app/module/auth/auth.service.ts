@@ -131,6 +131,7 @@ const verifyUserEmail = async (payload: IVerifyEmailPayload) => {
 			passwordHash: userPayload.password,
 			role: Role.CUSTOMER,
 			isActive: true,
+			isEmailVerified: true,
 		},
 		omit: { passwordHash: true },
 	});
@@ -343,6 +344,7 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
 				passwordHash: hashedPassword,
 				role: Role.CUSTOMER,
 				isActive: true,
+				isEmailVerified: true,
 			},
 		});
 	}

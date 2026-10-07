@@ -38,6 +38,7 @@ export const seedSuperAdmin = async () => {
 				passwordHash: hashedPassword,
 				role: Role.ADMIN,
 				isActive: true,
+				isEmailVerified: true,
 			},
 		});
 
@@ -50,7 +51,7 @@ export const seedSuperAdmin = async () => {
 				where: {
 					email: config.super_admin_email,
 				},
-			}).catch(() => {});
+			}).catch(() => { });
 		}
 	}
 };
@@ -91,6 +92,7 @@ export const seedTesterAdmin = async () => {
 				passwordHash: hashedPassword,
 				role: Role.ADMIN,
 				isActive: true,
+				isEmailVerified: true,
 			},
 		});
 
@@ -103,7 +105,60 @@ export const seedTesterAdmin = async () => {
 				where: {
 					email: config.tester_admin_email,
 				},
-			}).catch(() => {});
+			}).catch(() => { });
 		}
 	}
 };
+
+export const seedTesterProvider = async () => {
+	try {
+		if (!config.tester_provider_email) return;
+
+		const isTesterProviderExist = await prisma.user.findUnique({
+			where: {
+				email: config.tester_provider_email,
+			},
+		});
+
+		if (isTesterProviderExist) {
+			console.log("Tester Provider Already Exists!");
+			return;
+		}
+
+		const name = config.tester_provider_name || "Tester Provider";
+		const email = config.tester_provider_email;
+		const password = config.tester_provider_password;
+
+		if (!name || !email || !password) {
+			return;
+		}
+
+		const hashedPassword = await bcrypt.hash(
+			password,
+			Number(config.bcrypt_salt_rounds) || 10,
+		);
+
+		const testerProvider = await prisma.user.create({
+			data: {
+				name,
+				email,
+				passwordHash: hashedPassword,
+				role: Role.PROVIDER,
+				isActive: true,
+				isEmailVerified: true,
+			},
+		});
+
+		console.log("Tester Provider Created : ", testerProvider);
+	} catch (error) {
+		console.log("Error Seeding Tester Provider : ", error);
+
+		if (config.tester_provider_email) {
+			await prisma.user.delete({
+				where: {
+					email: config.tester_provider_email,
+				},
+			}).catch(() => { });
+		}
+	}
+}
