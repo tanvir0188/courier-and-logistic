@@ -4,6 +4,7 @@ import { AppError } from "../../utils/AppError";
 import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { UserServices } from "./user.service";
+import { Role } from "../../../generated/prisma/enums";
 
 const updateProfile = catchAsync(async (req: Request, res: Response) => {
 	const userId = req.user?.userId;
@@ -41,6 +42,24 @@ const updateProfile = catchAsync(async (req: Request, res: Response) => {
 	});
 });
 
+const getUsers = catchAsync(async (req: Request, res: Response) => {
+	const userRole = req.user?.role;
+
+	if (userRole !== Role.ADMIN) {
+		throw new AppError(httpStatus.FORBIDDEN, "Access denied");
+	}
+	const result = await UserServices.getAllUsers(req.query);
+
+	sendResponse(res, {
+		statusCode: httpStatus.OK,
+		success: true,
+		message: "Users retrieved successfully",
+		meta: result.meta,
+		data: result.data,
+	});
+});
+
 export const UserController = {
-	updateProfile
+	updateProfile,
+	getUsers,
 };

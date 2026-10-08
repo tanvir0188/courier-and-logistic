@@ -104,9 +104,28 @@ const getPaymentByShipmentId = catchAsync(
 	},
 );
 
+const getAllPayments = catchAsync(async (req: Request, res: Response) => {
+	const currentUser = req.user;
+
+	if (!currentUser) {
+		throw new AppError(httpStatus.UNAUTHORIZED, "User not authenticated");
+	}
+
+	const result = await PaymentService.getAllPayments(currentUser, req.query);
+
+	sendResponse(res, {
+		statusCode: httpStatus.OK,
+		success: true,
+		message: "Payments retrieved successfully",
+		meta: result.meta,
+		data: result.data,
+	});
+});
+
 export const PaymentController = {
 	createCheckoutSession,
 	handleStripeWebhook,
 	verifyCheckoutSession,
 	getPaymentByShipmentId,
+	getAllPayments,
 };

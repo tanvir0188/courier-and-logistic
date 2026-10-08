@@ -13,5 +13,6 @@ router.patch(
 	UserController.updateProfile,
 );
 
+router.get("/", auth(Role.ADMIN), UserController.getUsers);
 
 export const UserRoutes = router;

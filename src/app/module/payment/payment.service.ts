@@ -1,5 +1,6 @@
 import httpStatus from "http-status";
 import type Stripe from "stripe";
+import type { Prisma } from "../../../generated/prisma/client";
 import {
 	PaymentGateway,
 	PaymentStatus,
@@ -11,7 +12,10 @@ import { prisma } from "../../lib/prisma";
 import { stripe } from "../../lib/stripe";
 import type { RequestUser } from "../../middleware/checkAuth";
 import { AppError } from "../../utils/AppError";
-import type { ICreateCheckoutSessionPayload } from "./payment.interface";
+import type {
+	ICreateCheckoutSessionPayload,
+	IPaymentFilterRequest,
+} from "./payment.interface";
 
 const createCheckoutSession = async (
 	currentUser: RequestUser,
@@ -346,10 +350,203 @@ const getPaymentByShipmentId = async (
 	return shipment.payment;
 };
 
+const getAllPayments = async (
+	currentUser: RequestUser,
+	filters: IPaymentFilterRequest = {},
+) => {
+	// 1. Authorization: Only Provider and Admin can access
+	if (currentUser.role !== Role.ADMIN && currentUser.role !== Role.PROVIDER) {
+		throw new AppError(
+			httpStatus.FORBIDDEN,
+			"Access denied. Only providers and admins can access payments.",
+		);
+	}
+
+	const page = Math.max(1, Number(filters.page) || 1);
+	const limit = Math.max(1, Number(filters.limit) || 10);
+	const skip = (page - 1) * limit;
+	const sortBy = filters.sortBy || "createdAt";
+	const sortOrder = filters.sortOrder === "asc" ? "asc" : "desc";
+
+	const where: Prisma.PaymentWhereInput = {};
+	const andConditions: Prisma.PaymentWhereInput[] = [];
+
+	// Role-based scoping: Providers can only see payments for their own shipments
+	if (currentUser.role === Role.PROVIDER) {
+		andConditions.push({
+			shipment: {
+				providerId: currentUser.userId,
+			},
+		});
+	}
+
+	if (filters.status) {
+		andConditions.push({ status: filters.status });
+	}
+
+	if (filters.gateway) {
+		andConditions.push({ gateway: filters.gateway });
+	}
+
+	if (filters.searchTerm) {
+		const search = filters.searchTerm.trim();
+		andConditions.push({
+			OR: [
+				{
+					transactionId: {
+						contains: search,
+						mode: "insensitive",
+					},
+				},
+				{
+					shipmentId: {
+						contains: search,
+						mode: "insensitive",
+					},
+				},
+				{
+					shipment: {
+						trackingNumber: {
+							contains: search,
+							mode: "insensitive",
+						},
+					},
+				},
+				{
+					customer: {
+						name: {
+							contains: search,
+							mode: "insensitive",
+						},
+					},
+				},
+				{
+					customer: {
+						email: {
+							contains: search,
+							mode: "insensitive",
+						},
+					},
+				},
+			],
+		});
+	} else {
+		if (filters.transactionId) {
+			andConditions.push({
+				transactionId: {
+					contains: filters.transactionId.trim(),
+					mode: "insensitive",
+				},
+			});
+		}
+
+		if (filters.shipmentId) {
+			andConditions.push({
+				shipmentId: {
+					contains: filters.shipmentId.trim(),
+					mode: "insensitive",
+				},
+			});
+		}
+
+		if (filters.customerEmail) {
+			andConditions.push({
+				customer: {
+					email: {
+						contains: filters.customerEmail.trim(),
+						mode: "insensitive",
+					},
+				},
+			});
+		}
+
+		if (filters.customerName) {
+			andConditions.push({
+				customer: {
+					name: {
+						contains: filters.customerName.trim(),
+						mode: "insensitive",
+					},
+				},
+			});
+		}
+	}
+
+	if (andConditions.length > 0) {
+		where.AND = andConditions;
+	}
+
+	const [payments, total] = await Promise.all([
+		prisma.payment.findMany({
+			where,
+			skip,
+			take: limit,
+			orderBy: {
+				[sortBy]: sortOrder,
+			},
+			select: {
+				id: true,
+				transactionId: true,
+				shipmentId: true,
+				amount: true,
+				status: true,
+				gateway: true,
+				paidAt: true,
+				createdAt: true,
+				customer: {
+					select: {
+						id: true,
+						name: true,
+						email: true,
+						phone: true,
+					},
+				},
+				shipment: {
+					select: {
+						id: true,
+						trackingNumber: true,
+						status: true,
+						providerId: true,
+					},
+				},
+			},
+		}),
+		prisma.payment.count({ where }),
+	]);
+
+	const formattedPayments = payments.map((payment) => ({
+		id: payment.id,
+		transactionId: payment.transactionId,
+		shipmentId: payment.shipmentId,
+		trackingNumber: payment.shipment?.trackingNumber,
+		customerName: payment.customer.name,
+		customerEmail: payment.customer.email,
+		amount: Number(payment.amount),
+		date: payment.paidAt || payment.createdAt,
+		paidAt: payment.paidAt,
+		createdAt: payment.createdAt,
+		status: payment.status,
+		gateway: payment.gateway,
+		customer: payment.customer,
+		shipment: payment.shipment,
+	}));
+
+	return {
+		meta: {
+			page,
+			limit,
+			total,
+			totalPages: Math.ceil(total / limit),
+		},
+		data: formattedPayments,
+	};
+};
+
 export const PaymentService = {
 	createCheckoutSession,
 	handleStripeWebhook,
 	verifyCheckoutSession,
 	getPaymentByShipmentId,
 	confirmPaymentSuccess,
+	getAllPayments,
 };

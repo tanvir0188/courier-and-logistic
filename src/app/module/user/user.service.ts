@@ -1,14 +1,11 @@
 import type { UploadApiResponse } from "cloudinary";
 import httpStatus from "http-status";
+import type { Prisma } from "../../../generated/prisma/client";
 import { cloudinary } from "../../lib/cloudinary";
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
+import { IUpdateProfilePayload, IUserFilterRequest } from "./user.interface";
 
-export interface IUpdateProfilePayload {
-	name?: string;
-	phone?: string;
-	profilePic?: string;
-}
 
 const updateProfile = async (
 	userId: string,
@@ -109,6 +106,100 @@ const updateProfile = async (
 	return updatedUser;
 };
 
+const getAllUsers = async (filters: IUserFilterRequest = {}) => {
+	const page = Math.max(1, Number(filters.page) || 1);
+	const limit = Math.max(1, Number(filters.limit) || 10);
+	const skip = (page - 1) * limit;
+	const sortBy = filters.sortBy || "createdAt";
+	const sortOrder = filters.sortOrder === "asc" ? "asc" : "desc";
+
+	const where: Prisma.UserWhereInput = {};
+
+	if (filters.role) {
+		where.role = filters.role;
+	}
+
+	if (filters.isActive !== undefined) {
+		where.isActive = filters.isActive === "true" || filters.isActive === true;
+	}
+
+	if (filters.searchTerm) {
+		const search = filters.searchTerm.trim();
+		where.OR = [
+			{
+				name: {
+					contains: search,
+					mode: "insensitive",
+				},
+			},
+			{
+				email: {
+					contains: search,
+					mode: "insensitive",
+				},
+			},
+		];
+	} else {
+		const conditions: Prisma.UserWhereInput[] = [];
+
+		if (filters.name) {
+			conditions.push({
+				name: {
+					contains: filters.name.trim(),
+					mode: "insensitive",
+				},
+			});
+		}
+
+		if (filters.email) {
+			conditions.push({
+				email: {
+					contains: filters.email.trim(),
+					mode: "insensitive",
+				},
+			});
+		}
+
+		if (conditions.length > 0) {
+			where.AND = conditions;
+		}
+	}
+
+	const [users, total] = await Promise.all([
+		prisma.user.findMany({
+			where,
+			skip,
+			take: limit,
+			orderBy: {
+				[sortBy]: sortOrder,
+			},
+			select: {
+				id: true,
+				name: true,
+				email: true,
+				role: true,
+				phone: true,
+				profilePic: true,
+				isActive: true,
+				createdAt: true,
+				updatedAt: true,
+			},
+		}),
+		prisma.user.count({ where }),
+	]);
+
+	return {
+		meta: {
+			page,
+			limit,
+			total,
+			totalPages: Math.ceil(total / limit),
+		},
+		data: users,
+	};
+};
+
 export const UserServices = {
-	updateProfile
+	updateProfile,
+	getAllUsers,
 };

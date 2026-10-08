@@ -30,6 +30,13 @@ router.get(
 	PaymentController.getPaymentByShipmentId,
 );
 
+// Get all payments (accessible to Provider and Admin only, scoped by role)
+router.get(
+	"/",
+	auth(Role.PROVIDER, Role.ADMIN),
+	PaymentController.getAllPayments,
+);
+
 // Stripe webhook receiver
 router.post("/webhook", PaymentController.handleStripeWebhook);
 
