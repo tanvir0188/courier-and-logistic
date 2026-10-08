@@ -12,6 +12,7 @@ import { globalErrorHandler } from "./app/middleware/globalErrorHandler";
 import { notFound } from "./app/middleware/notFound";
 import { AuthRoutes } from "./app/module/auth/auth.route";
 import { CourierRoutes } from "./app/module/courier/courier.route";
+import { DashboardStatsRoutes } from "./app/module/dashboardStats/dashboardStats.route";
 import { PaymentRoutes } from "./app/module/payment/payment.route";
 import { ShipmentRoutes } from "./app/module/shipment/shipment.route";
 import { UserRoutes } from "./app/module/user/user.route";
@@ -49,6 +50,7 @@ app.use("/api/v1/zone", ZoneRoutes);
 app.use("/api/v1/courier", CourierRoutes);
 app.use("/api/v1/shipment", ShipmentRoutes);
 app.use("/api/v1/payment", PaymentRoutes);
+app.use("/api/v1/dashboard-stats", DashboardStatsRoutes);
 
 app.get("/test", async (_req: Request, res: Response) => {
 	res.status(httpStatus.OK).json({
