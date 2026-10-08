@@ -1,9 +1,11 @@
 import type { Request, Response } from "express";
 import httpStatus from "http-status";
+import type { ShipmentStatus } from "../../../generated/prisma/enums";
 import { AppError } from "../../utils/AppError";
 import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { ShipmentService } from "./shipment.service";
+import { processSimulatedStatusUpdate } from "./shipment.simulator";
 
 const createShipment = catchAsync(async (req: Request, res: Response) => {
 	const customerId = req.user?.userId;
@@ -127,6 +129,29 @@ const getAvailableCouriersForShipment = catchAsync(
 	},
 );
 
+const simulateStatusUpdate = catchAsync(async (req: Request, res: Response) => {
+	const { shipmentId, nextStatus } = req.body;
+
+	if (!shipmentId || !nextStatus) {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"shipmentId and nextStatus are required in request body",
+		);
+	}
+
+	const result = await processSimulatedStatusUpdate(
+		shipmentId as string,
+		nextStatus as ShipmentStatus,
+	);
+
+	sendResponse(res, {
+		statusCode: httpStatus.OK,
+		success: true,
+		message: `Simulated status updated to ${nextStatus}`,
+		data: result,
+	});
+});
+
 export const ShipmentController = {
 	createShipment,
 	getAllShipments,
@@ -134,4 +159,5 @@ export const ShipmentController = {
 	trackShipment,
 	assignCourier,
 	getAvailableCouriersForShipment,
+	simulateStatusUpdate,
 };

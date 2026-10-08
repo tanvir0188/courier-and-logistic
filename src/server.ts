@@ -1,10 +1,16 @@
+import http from "node:http";
 import app from "./app";
 import config from "./app/config";
 
 import { transporter } from "./app/lib/nodemailer";
 import { prisma } from "./app/lib/prisma";
 import { redisClient } from "./app/lib/redis";
-import { seedSuperAdmin, seedTesterAdmin, seedTesterProvider } from "./app/utils/seed";
+import {
+	seedSuperAdmin,
+	seedTesterAdmin,
+	seedTesterProvider,
+} from "./app/utils/seed";
+import { initSocket } from "./app/lib/socket";
 
 const PORT = config.port;
 
@@ -25,10 +31,11 @@ const main = async () => {
 		await seedTesterAdmin();
 		await seedTesterProvider();
 
-		//await deleteUnverifiedDoctors();
+		const httpServer = http.createServer(app);
+		initSocket(httpServer);
 
-		app.listen(PORT, () => {
-			console.log(`Server is running on port ${PORT}`);
+		httpServer.listen(PORT, () => {
+			console.log(`Server and Socket.io are running on port ${PORT}`);
 		});
 	} catch (error) {
 		console.error("Error starting the server:", error);

@@ -9,11 +9,13 @@ import {
 import { prisma } from "../../lib/prisma";
 import type { RequestUser } from "../../middleware/checkAuth";
 import { AppError } from "../../utils/AppError";
+import { emitShipmentStatusUpdate } from "../../lib/socket";
 import type {
 	IAssignCourierPayload,
 	ICreateShipmentPayload,
 	IShipmentFilterRequest,
 } from "./shipment.interface";
+import { scheduleShipmentSimulation } from "./shipment.simulator";
 
 // Helper to generate a unique readable tracking number
 const generateTrackingNumber = (): string => {
@@ -850,6 +852,32 @@ const assignCourier = async (
 			},
 		});
 	});
+
+	// Emit realtime live update on socket
+	const courierName =
+		updatedShipment.deliveryCourier?.name ||
+		updatedShipment.pickupCourier?.name ||
+		null;
+
+	emitShipmentStatusUpdate(updatedShipment.trackingNumber, {
+		shipmentId: updatedShipment.id,
+		trackingNumber: updatedShipment.trackingNumber,
+		status: newStatus,
+		description: eventDescription,
+		timestamp: new Date().toISOString(),
+		senderZone: updatedShipment.senderZone.name,
+		receiverZone: updatedShipment.receiverZone.name,
+		courierName,
+	});
+
+	// Trigger background simulation (updates every 20 seconds via QStash / local timer)
+	if (newStatus === ShipmentStatus.COURIER_ASSIGNED) {
+		scheduleShipmentSimulation(
+			updatedShipment.id,
+			ShipmentStatus.COURIER_ASSIGNED,
+			updatedShipment.trackingNumber,
+		);
+	}
 
 	return updatedShipment;
 };

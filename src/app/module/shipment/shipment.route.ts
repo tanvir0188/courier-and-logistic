@@ -50,4 +50,7 @@ router.patch(
 	ShipmentController.assignCourier,
 );
 
+// QStash webhook / Background task simulation endpoint
+router.post("/simulate-status-update", ShipmentController.simulateStatusUpdate);
+
 export const ShipmentRoutes = router;
