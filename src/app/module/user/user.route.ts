@@ -15,4 +15,10 @@ router.patch(
 
 router.get("/", auth(Role.ADMIN), UserController.getUsers);
 
+router.patch(
+	"/:id/toggle-status",
+	auth(Role.ADMIN),
+	UserController.toggleUserStatus,
+);
+
 export const UserRoutes = router;

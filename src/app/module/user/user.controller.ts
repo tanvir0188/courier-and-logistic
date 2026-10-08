@@ -1,10 +1,10 @@
 import type { Request, Response } from "express";
 import httpStatus from "http-status";
+import { Role } from "../../../generated/prisma/enums";
 import { AppError } from "../../utils/AppError";
 import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { UserServices } from "./user.service";
-import { Role } from "../../../generated/prisma/enums";
 
 const updateProfile = catchAsync(async (req: Request, res: Response) => {
 	const userId = req.user?.userId;
@@ -59,7 +59,37 @@ const getUsers = catchAsync(async (req: Request, res: Response) => {
 	});
 });
 
+const toggleUserStatus = catchAsync(async (req: Request, res: Response) => {
+	const currentUserId = req.user?.userId;
+	const { id } = req.params;
+	const { isActive } = req.body || {};
+
+	if (!currentUserId) {
+		throw new AppError(httpStatus.UNAUTHORIZED, "User not authenticated");
+	}
+
+	const explicitStatus = isActive !== undefined ? Boolean(isActive) : undefined;
+
+	const result = await UserServices.toggleUserStatus(
+		currentUserId,
+		id as string,
+		explicitStatus,
+	);
+
+	const message = result.isActive
+		? "User account reactivated successfully"
+		: "User account suspended successfully";
+
+	sendResponse(res, {
+		statusCode: httpStatus.OK,
+		success: true,
+		message,
+		data: result,
+	});
+});
+
 export const UserController = {
 	updateProfile,
 	getUsers,
+	toggleUserStatus,
 };

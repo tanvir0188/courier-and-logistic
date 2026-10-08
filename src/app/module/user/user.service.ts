@@ -4,8 +4,10 @@ import type { Prisma } from "../../../generated/prisma/client";
 import { cloudinary } from "../../lib/cloudinary";
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
-import { IUpdateProfilePayload, IUserFilterRequest } from "./user.interface";
-
+import type {
+	IUpdateProfilePayload,
+	IUserFilterRequest,
+} from "./user.interface";
 
 const updateProfile = async (
 	userId: string,
@@ -199,7 +201,50 @@ const getAllUsers = async (filters: IUserFilterRequest = {}) => {
 	};
 };
 
+const toggleUserStatus = async (
+	currentUserId: string,
+	targetUserId: string,
+	explicitStatus?: boolean,
+) => {
+	if (currentUserId === targetUserId) {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"You cannot suspend or modify your own account status",
+		);
+	}
+
+	const existingUser = await prisma.user.findUnique({
+		where: { id: targetUserId },
+	});
+
+	if (!existingUser) {
+		throw new AppError(httpStatus.NOT_FOUND, "User not found");
+	}
+
+	const newStatus =
+		explicitStatus !== undefined ? explicitStatus : !existingUser.isActive;
+
+	const updatedUser = await prisma.user.update({
+		where: { id: targetUserId },
+		data: { isActive: newStatus },
+		select: {
+			id: true,
+			name: true,
+			email: true,
+			role: true,
+			phone: true,
+			profilePic: true,
+			isActive: true,
+			createdAt: true,
+			updatedAt: true,
+		},
+	});
+
+	return updatedUser;
+};
+
 export const UserServices = {
 	updateProfile,
 	getAllUsers,
+	toggleUserStatus,
 };
