@@ -2,6 +2,7 @@ import httpStatus from "http-status";
 import type { Prisma } from "../../../generated/prisma/client";
 import {
 	CourierStatus,
+	PaymentStatus,
 	Role,
 	ShipmentStatus,
 } from "../../../generated/prisma/enums";
@@ -576,12 +577,13 @@ const assignCourier = async (
 	shipmentId: string,
 	payload: IAssignCourierPayload,
 ) => {
-	// 1. Fetch shipment with zones
+	// 1. Fetch shipment with zones and payment
 	const shipment = await prisma.shipment.findUnique({
 		where: { id: shipmentId },
 		include: {
 			senderZone: true,
 			receiverZone: true,
+			payment: true,
 		},
 	});
 
@@ -611,6 +613,18 @@ const assignCourier = async (
 		throw new AppError(
 			httpStatus.BAD_REQUEST,
 			`Cannot assign courier to a shipment with status '${shipment.status}'`,
+		);
+	}
+
+	// 4. Payment validation: Courier can only be assigned once payment is completed
+	const isPaymentCompleted =
+		shipment.status === ShipmentStatus.PAYMENT_CONFIRMED ||
+		shipment.payment?.status === PaymentStatus.SUCCESS;
+
+	if (!isPaymentCompleted) {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"Cannot assign courier: Payment for this shipment has not been completed. The shipment must be in PAYMENT_CONFIRMED status before a courier can be assigned.",
 		);
 	}
 
@@ -750,7 +764,6 @@ const assignCourier = async (
 	}
 
 	const shouldUpdateStatus =
-		shipment.status === ShipmentStatus.CREATED ||
 		shipment.status === ShipmentStatus.PAYMENT_CONFIRMED;
 
 	const newStatus = shouldUpdateStatus

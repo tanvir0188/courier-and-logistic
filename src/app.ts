@@ -12,6 +12,7 @@ import { globalErrorHandler } from "./app/middleware/globalErrorHandler";
 import { notFound } from "./app/middleware/notFound";
 import { AuthRoutes } from "./app/module/auth/auth.route";
 import { CourierRoutes } from "./app/module/courier/courier.route";
+import { PaymentRoutes } from "./app/module/payment/payment.route";
 import { ShipmentRoutes } from "./app/module/shipment/shipment.route";
 import { UserRoutes } from "./app/module/user/user.route";
 import { ZoneRoutes } from "./app/module/zone/zone.route";
@@ -32,8 +33,14 @@ app.use(
 // Enable URL-encoded form data parsing
 app.use(express.urlencoded({ extended: true }));
 
-// Middleware to parse JSON bodies
-app.use(express.json());
+// Middleware to parse JSON bodies (preserves rawBody Buffer for Stripe webhook verification)
+app.use(
+	express.json({
+		verify: (req: any, _res, buf) => {
+			req.rawBody = buf;
+		},
+	}),
+);
 app.use(cookieParser());
 
 app.use("/api/v1/auth", AuthRoutes);
@@ -41,6 +48,7 @@ app.use("/api/v1/user", UserRoutes);
 app.use("/api/v1/zone", ZoneRoutes);
 app.use("/api/v1/courier", CourierRoutes);
 app.use("/api/v1/shipment", ShipmentRoutes);
+app.use("/api/v1/payment", PaymentRoutes);
 
 app.get("/test", async (_req: Request, res: Response) => {
 	res.status(httpStatus.OK).json({
