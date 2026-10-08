@@ -76,6 +76,37 @@ const createShipmentZodSchema = z.object({
 		.optional(),
 });
 
+const assignCourierZodSchema = z
+	.object({
+		courierId: z
+			.string({
+				error: "Courier ID must be a string",
+			})
+			.uuid("Courier ID must be a valid UUID")
+			.optional(),
+		pickupCourierId: z
+			.string({
+				error: "Pickup Courier ID must be a string",
+			})
+			.uuid("Pickup Courier ID must be a valid UUID")
+			.optional(),
+		deliveryCourierId: z
+			.string({
+				error: "Delivery Courier ID must be a string",
+			})
+			.uuid("Delivery Courier ID must be a valid UUID")
+			.optional(),
+	})
+	.refine(
+		(data) =>
+			Boolean(data.courierId || data.pickupCourierId || data.deliveryCourierId),
+		{
+			message:
+				"At least one of courierId, pickupCourierId, or deliveryCourierId must be provided",
+		},
+	);
+
 export const ShipmentValidation = {
 	createShipmentZodSchema,
+	assignCourierZodSchema,
 };

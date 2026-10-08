@@ -7,7 +7,6 @@ import { ShipmentValidation } from "./shipment.validation";
 
 const router = Router();
 
-// Only Customers can create shipments
 router.post(
 	"/",
 	auth(Role.CUSTOMER),
@@ -34,6 +33,21 @@ router.get(
 	"/:id",
 	auth(Role.CUSTOMER, Role.PROVIDER, Role.ADMIN),
 	ShipmentController.getShipmentById,
+);
+
+// Get available couriers to assign for a shipment
+router.get(
+	"/:id/available-couriers",
+	auth(Role.PROVIDER, Role.ADMIN),
+	ShipmentController.getAvailableCouriersForShipment,
+);
+
+// Assign courier(s) to shipment
+router.patch(
+	"/:id/assign-courier",
+	auth(Role.PROVIDER, Role.ADMIN),
+	validateRequest(ShipmentValidation.assignCourierZodSchema),
+	ShipmentController.assignCourier,
 );
 
 export const ShipmentRoutes = router;

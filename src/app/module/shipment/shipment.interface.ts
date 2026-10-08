@@ -35,3 +35,9 @@ export interface IShipmentFilterRequest {
 	sortBy?: string;
 	sortOrder?: "asc" | "desc";
 }
+
+export interface IAssignCourierPayload {
+	courierId?: string;
+	pickupCourierId?: string;
+	deliveryCourierId?: string;
+}

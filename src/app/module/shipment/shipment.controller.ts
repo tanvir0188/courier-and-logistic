@@ -82,9 +82,56 @@ const trackShipment = catchAsync(async (req: Request, res: Response) => {
 	});
 });
 
+const assignCourier = catchAsync(async (req: Request, res: Response) => {
+	const currentUser = req.user;
+	const { id } = req.params;
+
+	if (!currentUser) {
+		throw new AppError(httpStatus.UNAUTHORIZED, "User not authenticated");
+	}
+
+	const result = await ShipmentService.assignCourier(
+		currentUser,
+		id as string,
+		req.body,
+	);
+
+	sendResponse(res, {
+		statusCode: httpStatus.OK,
+		success: true,
+		message: "Courier assigned to shipment successfully",
+		data: result,
+	});
+});
+
+const getAvailableCouriersForShipment = catchAsync(
+	async (req: Request, res: Response) => {
+		const currentUser = req.user;
+		const { id } = req.params;
+
+		if (!currentUser) {
+			throw new AppError(httpStatus.UNAUTHORIZED, "User not authenticated");
+		}
+
+		const result = await ShipmentService.getAvailableCouriersForShipment(
+			currentUser,
+			id as string,
+		);
+
+		sendResponse(res, {
+			statusCode: httpStatus.OK,
+			success: true,
+			message: "Available couriers retrieved successfully",
+			data: result,
+		});
+	},
+);
+
 export const ShipmentController = {
 	createShipment,
 	getAllShipments,
 	getShipmentById,
 	trackShipment,
+	assignCourier,
+	getAvailableCouriersForShipment,
 };
