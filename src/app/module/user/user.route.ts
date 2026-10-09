@@ -13,7 +13,7 @@ router.patch(
 	UserController.updateProfile,
 );
 
-router.get("/", auth(Role.ADMIN), UserController.getUsers);
+router.get("/", auth(Role.ADMIN, Role.CUSTOMER), UserController.getUsers);
 
 router.patch(
 	"/:id/toggle-status",

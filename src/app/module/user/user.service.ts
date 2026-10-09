@@ -4,6 +4,8 @@ import type { Prisma } from "../../../generated/prisma/client";
 import { cloudinary } from "../../lib/cloudinary";
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
+import { Role } from "../../../generated/prisma/enums";
+import type { RequestUser } from "../../middleware/checkAuth";
 import type {
 	IUpdateProfilePayload,
 	IUserFilterRequest,
@@ -108,7 +110,23 @@ const updateProfile = async (
 	return updatedUser;
 };
 
-const getAllUsers = async (filters: IUserFilterRequest = {}) => {
+const getAllUsers = async (
+	currentUserOrFilters?: RequestUser | IUserFilterRequest,
+	filtersOrUser?: IUserFilterRequest | RequestUser,
+) => {
+	let currentUser: RequestUser | undefined;
+	let filters: IUserFilterRequest = {};
+
+	if (currentUserOrFilters && "userId" in currentUserOrFilters) {
+		currentUser = currentUserOrFilters as RequestUser;
+		filters = (filtersOrUser as IUserFilterRequest) || {};
+	} else if (filtersOrUser && "userId" in filtersOrUser) {
+		currentUser = filtersOrUser as RequestUser;
+		filters = (currentUserOrFilters as IUserFilterRequest) || {};
+	} else {
+		filters = (currentUserOrFilters as IUserFilterRequest) || {};
+	}
+
 	const page = Math.max(1, Number(filters.page) || 1);
 	const limit = Math.max(1, Number(filters.limit) || 10);
 	const skip = (page - 1) * limit;
@@ -117,7 +135,13 @@ const getAllUsers = async (filters: IUserFilterRequest = {}) => {
 
 	const where: Prisma.UserWhereInput = {};
 
-	if (filters.role) {
+	const requestingUserRole =
+		currentUser?.role || filters.currentUser?.role || filters.userRole;
+
+	// If the role is customer, they can only see users that have provider role
+	if (requestingUserRole === Role.CUSTOMER) {
+		where.role = Role.PROVIDER;
+	} else if (filters.role) {
 		where.role = filters.role;
 	}
 

@@ -43,12 +43,17 @@ const updateProfile = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getUsers = catchAsync(async (req: Request, res: Response) => {
-	const userRole = req.user?.role;
+	const currentUser = req.user;
 
-	if (userRole !== Role.ADMIN) {
+	if (!currentUser) {
+		throw new AppError(httpStatus.UNAUTHORIZED, "User not authenticated");
+	}
+
+	if (currentUser.role !== Role.ADMIN && currentUser.role !== Role.CUSTOMER) {
 		throw new AppError(httpStatus.FORBIDDEN, "Access denied");
 	}
-	const result = await UserServices.getAllUsers(req.query);
+
+	const result = await UserServices.getAllUsers(currentUser, req.query);
 
 	sendResponse(res, {
 		statusCode: httpStatus.OK,
