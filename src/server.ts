@@ -1,6 +1,10 @@
+import dns from "node:dns";
 import http from "node:http";
 import app from "./app";
 import config from "./app/config";
+
+// Prefer IPv4 DNS results to prevent IPv6 ENETUNREACH in environments without IPv6 routing (e.g. Render)
+dns.setDefaultResultOrder("ipv4first");
 
 import { initCronJobs } from "./app/lib/cron";
 import { transporter } from "./app/lib/nodemailer";
@@ -17,7 +21,7 @@ import {
 	seedTesterProvider,
 } from "./app/utils/seed";
 
-const PORT = config.port;
+const PORT = Number(config.port) || 5000;
 
 const main = async () => {
 	try {
@@ -29,8 +33,12 @@ const main = async () => {
 		redisClient.get("test").then(console.log);
 		console.log("Redis Connected Successfully.");
 
-		await transporter.verify();
-		console.log("Nodemailer Connected Successfully.");
+		try {
+			await transporter.verify();
+			console.log("Nodemailer Connected Successfully.");
+		} catch (smtpErr) {
+			console.warn("⚠️ Nodemailer verification failed (emails may not send):", smtpErr);
+		}
 
 		await seedSuperAdmin();
 		await seedTesterAdmin();
@@ -39,7 +47,7 @@ const main = async () => {
 		const httpServer = http.createServer(app);
 		initSocket(httpServer);
 
-		httpServer.listen(PORT, () => {
+		httpServer.listen(PORT, "0.0.0.0", () => {
 			console.log(`Server and Socket.io are running on port ${PORT}`);
 
 			// Clean up any historical duplicate events from before idempotency was introduced
