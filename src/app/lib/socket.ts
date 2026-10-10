@@ -18,7 +18,11 @@ export interface IShipmentStatusUpdateEvent {
 export const initSocket = (httpServer: HttpServer): SocketIOServer => {
 	io = new SocketIOServer(httpServer, {
 		cors: {
-			origin: "*",
+			origin: [
+				"http://localhost:3000",
+				"http://127.0.0.1:3000",
+				process.env.FRONTEND_URL || "",
+			].filter(Boolean),
 			methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
 			credentials: true,
 		},

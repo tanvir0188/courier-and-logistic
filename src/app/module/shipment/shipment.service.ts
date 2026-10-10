@@ -7,9 +7,9 @@ import {
 	ShipmentStatus,
 } from "../../../generated/prisma/enums";
 import { prisma } from "../../lib/prisma";
+import { emitShipmentStatusUpdate } from "../../lib/socket";
 import type { RequestUser } from "../../middleware/checkAuth";
 import { AppError } from "../../utils/AppError";
-import { emitShipmentStatusUpdate } from "../../lib/socket";
 import type {
 	IAssignCourierPayload,
 	ICreateShipmentPayload,
@@ -787,6 +787,15 @@ const assignCourier = async (
 			}
 		}
 
+		const existingAssignedEvent = await tx.shipmentEvent.findFirst({
+			where: {
+				shipmentId,
+				status: ShipmentStatus.COURIER_ASSIGNED,
+			},
+		});
+
+		const shouldCreateEvent = shouldUpdateStatus && !existingAssignedEvent;
+
 		return await tx.shipment.update({
 			where: { id: shipmentId },
 			data: {
@@ -797,12 +806,14 @@ const assignCourier = async (
 					deliveryCourierId: targetDeliveryCourierId,
 				}),
 				status: newStatus,
-				events: {
-					create: {
-						status: newStatus,
-						description: eventDescription,
+				...(shouldCreateEvent && {
+					events: {
+						create: {
+							status: newStatus,
+							description: eventDescription,
+						},
 					},
-				},
+				}),
 			},
 			include: {
 				senderZone: true,

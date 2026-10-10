@@ -1,9 +1,13 @@
 import type { Request, Response } from "express";
 import httpStatus from "http-status";
 import type { ShipmentStatus } from "../../../generated/prisma/enums";
+import config from "../../config";
+import { prisma } from "../../lib/prisma";
+import { qstashReceiver } from "../../lib/qstash";
 import { AppError } from "../../utils/AppError";
 import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
+import { STATUS_SEQUENCE } from "./shipment.constant";
 import { ShipmentService } from "./shipment.service";
 import { processSimulatedStatusUpdate } from "./shipment.simulator";
 
@@ -130,6 +134,25 @@ const getAvailableCouriersForShipment = catchAsync(
 );
 
 const simulateStatusUpdate = catchAsync(async (req: Request, res: Response) => {
+	const signature = req.headers["upstash-signature"] as string | undefined;
+
+	if (signature && config.qstash_current_signing_key) {
+		const rawBody =
+			(req as Request & { rawBody?: Buffer }).rawBody?.toString("utf-8") ||
+			JSON.stringify(req.body);
+		try {
+			await qstashReceiver.verify({
+				signature,
+				body: rawBody,
+			});
+		} catch (_err) {
+			throw new AppError(
+				httpStatus.UNAUTHORIZED,
+				"Invalid QStash webhook signature",
+			);
+		}
+	}
+
 	const { shipmentId, nextStatus } = req.body;
 
 	if (!shipmentId || !nextStatus) {
@@ -137,6 +160,37 @@ const simulateStatusUpdate = catchAsync(async (req: Request, res: Response) => {
 			httpStatus.BAD_REQUEST,
 			"shipmentId and nextStatus are required in request body",
 		);
+	}
+
+	// Fast idempotency check before doing any processing
+	const [existingEvent, shipment] = await Promise.all([
+		prisma.shipmentEvent.findFirst({
+			where: {
+				shipmentId: shipmentId as string,
+				status: nextStatus as ShipmentStatus,
+			},
+		}),
+		prisma.shipment.findUnique({
+			where: { id: shipmentId as string },
+			select: { status: true, trackingNumber: true },
+		}),
+	]);
+
+	if (
+		existingEvent ||
+		(shipment &&
+			STATUS_SEQUENCE[shipment.status] >=
+				STATUS_SEQUENCE[nextStatus as ShipmentStatus])
+	) {
+		console.log(
+			`[Webhook:Guard] 🛑 Idempotent call: Event for '${nextStatus}' already processed for Shipment [${shipment?.trackingNumber || shipmentId}]. Skipping DB update.`,
+		);
+		return sendResponse(res, {
+			statusCode: httpStatus.OK,
+			success: true,
+			message: `Event for ${nextStatus} has already been processed (idempotent). Database untouched.`,
+			data: shipment,
+		});
 	}
 
 	const result = await processSimulatedStatusUpdate(

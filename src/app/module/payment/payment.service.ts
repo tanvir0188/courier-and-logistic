@@ -12,6 +12,7 @@ import { prisma } from "../../lib/prisma";
 import { stripe } from "../../lib/stripe";
 import type { RequestUser } from "../../middleware/checkAuth";
 import { AppError } from "../../utils/AppError";
+import { STATUS_SEQUENCE } from "../shipment/shipment.constant";
 import type {
 	ICreateCheckoutSessionPayload,
 	IPaymentFilterRequest,
@@ -141,42 +142,35 @@ const confirmPaymentSuccess = async (
 	transactionId?: string,
 	sessionData?: unknown,
 ) => {
-	return await prisma.$transaction(async (tx) => {
-		const existingPayment = await tx.payment.findUnique({
+	// 1. Fast idempotent check: If already SUCCESS, or PAYMENT_CONFIRMED event exists, or already past this status, return immediately without opening a transaction
+	const [existingPayment, existingEvent, existingShipment] = await Promise.all([
+		prisma.payment.findUnique({
 			where: { shipmentId },
-		});
-
-		// If already marked as success, return current shipment
-		if (existingPayment?.status === PaymentStatus.SUCCESS) {
-			return await tx.shipment.findUnique({
-				where: { id: shipmentId },
-				include: { payment: true },
-			});
-		}
-
-		// Update payment record to SUCCESS
-		await tx.payment.update({
-			where: { shipmentId },
-			data: {
-				status: PaymentStatus.SUCCESS,
-				transactionId: transactionId || existingPayment?.transactionId,
-				paidAt: new Date(),
-				callbackData: (sessionData as object) || undefined,
-			},
-		});
-
-		// Transition shipment status to PAYMENT_CONFIRMED and log event
-		const updatedShipment = await tx.shipment.update({
-			where: { id: shipmentId },
-			data: {
+		}),
+		prisma.shipmentEvent.findFirst({
+			where: {
+				shipmentId,
 				status: ShipmentStatus.PAYMENT_CONFIRMED,
-				events: {
-					create: {
-						status: ShipmentStatus.PAYMENT_CONFIRMED,
-						description: `Payment completed via Stripe. Transaction ID: ${transactionId || "N/A"}`,
-					},
-				},
 			},
+		}),
+		prisma.shipment.findUnique({
+			where: { id: shipmentId },
+			select: { status: true },
+		}),
+	]);
+
+	if (
+		existingPayment?.status === PaymentStatus.SUCCESS ||
+		existingEvent ||
+		(existingShipment &&
+			STATUS_SEQUENCE[existingShipment.status] >=
+				STATUS_SEQUENCE[ShipmentStatus.PAYMENT_CONFIRMED])
+	) {
+		console.log(
+			`[Payment:Idempotency] Shipment [${shipmentId}] payment confirmed event already recorded. Skipping DB update.`,
+		);
+		return await prisma.shipment.findUnique({
+			where: { id: shipmentId },
 			include: {
 				payment: true,
 				senderZone: true,
@@ -188,9 +182,115 @@ const confirmPaymentSuccess = async (
 				},
 			},
 		});
+	}
 
-		return updatedShipment;
-	});
+	try {
+		return await prisma.$transaction(
+			async (tx) => {
+				const [currentPayment, existingEventInTx, currentShipmentInTx] =
+					await Promise.all([
+						tx.payment.findUnique({ where: { shipmentId } }),
+						tx.shipmentEvent.findFirst({
+							where: {
+								shipmentId,
+								status: ShipmentStatus.PAYMENT_CONFIRMED,
+							},
+						}),
+						tx.shipment.findUnique({ where: { id: shipmentId } }),
+					]);
+
+				// Double-check inside transaction in case it was marked SUCCESS or event created concurrently
+				if (
+					currentPayment?.status === PaymentStatus.SUCCESS ||
+					existingEventInTx ||
+					(currentShipmentInTx &&
+						STATUS_SEQUENCE[currentShipmentInTx.status] >=
+							STATUS_SEQUENCE[ShipmentStatus.PAYMENT_CONFIRMED])
+				) {
+					console.log(
+						`[Payment:Idempotency:Tx] Shipment [${shipmentId}] already confirmed or event exists. Skipping DB update.`,
+					);
+					return await tx.shipment.findUnique({
+						where: { id: shipmentId },
+						include: {
+							payment: true,
+							senderZone: true,
+							receiverZone: true,
+							events: {
+								orderBy: {
+									createdAt: "asc",
+								},
+							},
+						},
+					});
+				}
+
+				// Update payment record to SUCCESS
+				await tx.payment.update({
+					where: { shipmentId },
+					data: {
+						status: PaymentStatus.SUCCESS,
+						transactionId: transactionId || currentPayment?.transactionId,
+						paidAt: new Date(),
+						callbackData: (sessionData as object) || undefined,
+					},
+				});
+
+				// Transition shipment status to PAYMENT_CONFIRMED and log event
+				const updatedShipment = await tx.shipment.update({
+					where: { id: shipmentId },
+					data: {
+						status: ShipmentStatus.PAYMENT_CONFIRMED,
+						events: {
+							create: {
+								status: ShipmentStatus.PAYMENT_CONFIRMED,
+								description: `Payment completed via Stripe. Transaction ID: ${transactionId || "N/A"}`,
+							},
+						},
+					},
+					include: {
+						payment: true,
+						senderZone: true,
+						receiverZone: true,
+						events: {
+							orderBy: {
+								createdAt: "asc",
+							},
+						},
+					},
+				});
+
+				return updatedShipment;
+			},
+			{
+				maxWait: 10000, // 10 seconds to acquire connection
+				timeout: 20000, // 20 seconds for transaction execution
+			},
+		);
+	} catch (error) {
+		// If transaction failed due to timeout or concurrency conflict, check if another process already confirmed it
+		const verifiedPayment = await prisma.payment.findUnique({
+			where: { shipmentId },
+		});
+
+		if (verifiedPayment?.status === PaymentStatus.SUCCESS) {
+			return await prisma.shipment.findUnique({
+				where: { id: shipmentId },
+				include: {
+					payment: true,
+					senderZone: true,
+					receiverZone: true,
+					events: {
+						orderBy: {
+							createdAt: "asc",
+						},
+					},
+				},
+			});
+		}
+
+		throw error;
+	}
 };
 
 const handleStripeWebhook = async (rawBody: Buffer, signature: string) => {
@@ -210,7 +310,10 @@ const handleStripeWebhook = async (rawBody: Buffer, signature: string) => {
 		);
 	}
 
-	if (event.type === "checkout.session.completed") {
+	if (
+		event.type === "checkout.session.completed" ||
+		event.type === "checkout.session.async_payment_succeeded"
+	) {
 		const session = event.data.object as Stripe.Checkout.Session;
 		const shipmentId =
 			session.metadata?.shipmentId ||
@@ -221,7 +324,33 @@ const handleStripeWebhook = async (rawBody: Buffer, signature: string) => {
 				typeof session.payment_intent === "string"
 					? session.payment_intent
 					: undefined;
-			await confirmPaymentSuccess(shipmentId, transactionId, session);
+
+			try {
+				await confirmPaymentSuccess(shipmentId, transactionId, session);
+			} catch (_confirmError) {
+				// Concurrency resilience: Check if shipment payment is already marked SUCCESS
+				const checkPayment = await prisma.payment.findUnique({
+					where: { shipmentId },
+				});
+
+				if (checkPayment?.status === PaymentStatus.SUCCESS) {
+					return { received: true };
+				}
+
+				// Retry once after a brief delay if transient error
+				try {
+					await new Promise((resolve) => setTimeout(resolve, 1000));
+					await confirmPaymentSuccess(shipmentId, transactionId, session);
+				} catch (retryError) {
+					const finalCheck = await prisma.payment.findUnique({
+						where: { shipmentId },
+					});
+					if (finalCheck?.status === PaymentStatus.SUCCESS) {
+						return { received: true };
+					}
+					throw retryError;
+				}
+			}
 		}
 	}
 
