@@ -38,6 +38,7 @@ const registerUser = async (payload: IRegisterUserPayload) => {
 			"User with this email already exists",
 		);
 	}
+	const role = payload.role === Role.PROVIDER ? Role.PROVIDER : Role.CUSTOMER;
 
 	const hashedPassword = await bcrypt.hash(password, 8);
 	const expirationSeconds = 5 * 60;
@@ -52,13 +53,12 @@ const registerUser = async (payload: IRegisterUserPayload) => {
 		name,
 		email,
 		password: hashedPassword,
+		role,
 	};
 
-	await redisClient.set(
-		registrationKey,
-		JSON.stringify(redisUserDataPayload),
-		{ ex: expirationSeconds },
-	);
+	await redisClient.set(registrationKey, JSON.stringify(redisUserDataPayload), {
+		ex: expirationSeconds,
+	});
 
 	const templatePath = path.join(
 		process.cwd(),
@@ -115,7 +115,10 @@ const verifyUserEmail = async (payload: IVerifyEmailPayload) => {
 	const redisUserData = await redisClient.get(registrationKey);
 
 	if (!redisUserData) {
-		throw new AppError(httpStatus.NOT_FOUND, "User registration data not found");
+		throw new AppError(
+			httpStatus.NOT_FOUND,
+			"User registration data not found",
+		);
 	}
 
 	const userPayload = (
@@ -129,7 +132,7 @@ const verifyUserEmail = async (payload: IVerifyEmailPayload) => {
 			name: userPayload.name,
 			email: userPayload.email,
 			passwordHash: userPayload.password,
-			role: Role.CUSTOMER,
+			role: userPayload.role || Role.CUSTOMER,
 			isActive: true,
 			isEmailVerified: true,
 		},
@@ -198,7 +201,10 @@ const loginUser = async (payload: ILoginUserPayload) => {
 	}
 
 	if (!user.isActive) {
-		throw new AppError(httpStatus.FORBIDDEN, "User account is inactive or blocked");
+		throw new AppError(
+			httpStatus.FORBIDDEN,
+			"User account is inactive or blocked",
+		);
 	}
 
 	const isPasswordMatched = await bcrypt.compare(password, user.passwordHash);
@@ -319,7 +325,11 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
 		);
 	}
 
-	if (!googleIdTokenPayload || !googleIdTokenPayload.email || !googleIdTokenPayload.name) {
+	if (
+		!googleIdTokenPayload ||
+		!googleIdTokenPayload.email ||
+		!googleIdTokenPayload.name
+	) {
 		throw new AppError(httpStatus.BAD_REQUEST, "Google user details not found");
 	}
 

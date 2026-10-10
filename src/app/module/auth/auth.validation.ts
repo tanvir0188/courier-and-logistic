@@ -1,4 +1,5 @@
 import z from "zod";
+import { Role } from "../../../generated/prisma/enums";
 
 const UserRegistrationZodSchema = z.object({
 	name: z
@@ -20,6 +21,14 @@ const UserRegistrationZodSchema = z.object({
 			/[^A-Za-z0-9]/,
 			"Password must contain at least 1 special character.",
 		),
+
+	role: z
+		.preprocess(
+			(val) => (typeof val === "string" ? val.toUpperCase() : val),
+			z.enum([Role.CUSTOMER, Role.PROVIDER]),
+		)
+		.optional()
+		.default(Role.CUSTOMER),
 });
 const UserEmailVerifyZodSchema = z.object({
 	email: z.email("Not email!!"),
