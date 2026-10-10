@@ -5,7 +5,8 @@
     "main": "index.js",
     "scripts": {
         "dev": "tsx watch src/server.ts",
-        "build": "tsc",
+        "build": "prisma generate && tsc",
+        "postinstall": "prisma generate",
         "start": "tsx src/server.ts",
         "test": "echo \"Error: no test specified\" && exit 1",
         "format:check": "npx @biomejs/biome format ./src",
