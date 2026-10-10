@@ -7,18 +7,18 @@ import { STATUS_SEQUENCE } from "./shipment.constant";
 
 // Expected previous status mapping for optimistic concurrency control
 const EXPECTED_PREVIOUS_STATUS: Record<ShipmentStatus, ShipmentStatus | null> =
-	{
-		[ShipmentStatus.CREATED]: null,
-		[ShipmentStatus.PAYMENT_CONFIRMED]: null,
-		[ShipmentStatus.COURIER_ASSIGNED]: null,
-		[ShipmentStatus.PICKED_UP]: ShipmentStatus.COURIER_ASSIGNED,
-		[ShipmentStatus.IN_TRANSIT]: ShipmentStatus.PICKED_UP,
-		[ShipmentStatus.OUT_FOR_DELIVERY]: ShipmentStatus.IN_TRANSIT,
-		[ShipmentStatus.DELIVERED]: ShipmentStatus.OUT_FOR_DELIVERY,
-		[ShipmentStatus.DELIVERY_FAILED]: null,
-		[ShipmentStatus.RETURNED]: null,
-		[ShipmentStatus.CANCELLED]: null,
-	};
+{
+	[ShipmentStatus.CREATED]: null,
+	[ShipmentStatus.PAYMENT_CONFIRMED]: null,
+	[ShipmentStatus.COURIER_ASSIGNED]: null,
+	[ShipmentStatus.PICKED_UP]: ShipmentStatus.COURIER_ASSIGNED,
+	[ShipmentStatus.IN_TRANSIT]: ShipmentStatus.PICKED_UP,
+	[ShipmentStatus.OUT_FOR_DELIVERY]: ShipmentStatus.IN_TRANSIT,
+	[ShipmentStatus.DELIVERED]: ShipmentStatus.OUT_FOR_DELIVERY,
+	[ShipmentStatus.DELIVERY_FAILED]: null,
+	[ShipmentStatus.RETURNED]: null,
+	[ShipmentStatus.CANCELLED]: null,
+};
 
 // The ordered status progression for simulation
 const STATUS_PROGRESSION: Record<
@@ -245,10 +245,10 @@ export const processSimulatedStatusUpdate = async (
 
 				const eventDescription = stepConfig
 					? stepConfig.description({
-							courier: courier?.name,
-							senderZone: current.senderZone.name,
-							receiverZone: current.receiverZone.name,
-						})
+						courier: courier?.name,
+						senderZone: current.senderZone.name,
+						receiverZone: current.receiverZone.name,
+					})
 					: `Shipment status updated to ${targetStatus}`;
 
 				const updated = await tx.shipment.update({
@@ -409,7 +409,7 @@ export const resumeInterruptedShipments = async () => {
 
 	try {
 		console.log(
-			"[Simulator:Recovery] 🔍 Scanning database for interrupted shipments...",
+			"[Simulator:Recovery] Scanning database for interrupted shipments...",
 		);
 
 		const interruptedShipments = await prisma.shipment.findMany({
@@ -433,13 +433,13 @@ export const resumeInterruptedShipments = async () => {
 
 		if (interruptedShipments.length === 0) {
 			console.log(
-				"[Simulator:Recovery] ✅ No interrupted shipments found. All shipments up to date.",
+				"[Simulator:Recovery] No interrupted shipments found. All shipments up to date.",
 			);
 			return 0;
 		}
 
 		console.log(
-			`[Simulator:Recovery] 🔄 Found ${interruptedShipments.length} active shipment(s) to evaluate/resume.`,
+			`[Simulator:Recovery] Found ${interruptedShipments.length} active shipment(s) to evaluate/resume.`,
 		);
 
 		let resumedCount = 0;
